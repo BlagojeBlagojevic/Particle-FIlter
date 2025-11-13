@@ -297,8 +297,8 @@ int main() {
     
     // Parametri
     const int N = 6000;         
-    const float sig_pro = 0.10f; 
-    const float sig_mea = 0.5f; 
+    const float sig_pro = 0.05f; 
+    const float sig_mea = 1.5f; 
     
     // Granice prostora
     const float x_min = -2.0f, x_max = 12.0f;
@@ -347,7 +347,7 @@ int main() {
         float measured_d2 = true_d2 + sig_mea * rand_GAUS(pf->s);
         float measured_d3 = true_d3 + sig_mea * rand_GAUS(pf->s);
         float trilat_pos[3];
-        const float mes[] = {true_d1, true_d2, true_d3};
+        const float mes[] = {true_d1 , true_d2, true_d3};
       
 
 
@@ -365,7 +365,8 @@ int main() {
         LOG("%5d | (%5.2f,%5.2f,%5.2f) | (%5.2f,%5.2f,%5.2f) | %5.3f\n", 
              t, true_x, true_y, true_z, est_x, est_y, est_z, error);
         
-        fprintf(f, "    [%f, %f, %f, %f, %f, %f, %f, %f, %f],  # True position at step %d\n", true_x, true_y, true_z, 
+        fprintf(f, "    [%f, %f, %f, %f, %f, %f],  # True position at step %d\n", 
+            //true_x, true_y, true_z, >
             est_x, est_y, est_z,
             trilat_pos[0], trilat_pos[1], trilat_pos[2], t);
     }
