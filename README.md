@@ -3,7 +3,7 @@
 
 ## 1. Introduction
 
-This paper describes in detail the theoretical foundations and practical implementation of the particle filter (Particle Filter), also known as Monte Carlo Localization (MCL), for solving 3D positioning problems.
+This repo describes in detail the theoretical foundations and practical implementation of the particle filter (Particle Filter), also known as Monte Carlo Localization (MCL), for solving 3D positioning problems.
 
 The problem is reduced to estimating the position (x,y,z) of an object in space based on noisy distance measurements from three fixed transmitters (beacons) with known locations.
 
