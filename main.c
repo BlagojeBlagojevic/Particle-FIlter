@@ -164,6 +164,71 @@ void calculate_RSSIs(float RSSIs[3], float distances[3], float RSSI1m, float env
 }
 
 
+void draw_graph(float *arr, int size, int x, int y, int width, int height, const char* name, float lineValue) {
+    DrawRectangle(x, y, width, height, BLACK);
+    if (size < 2) return; // Need at least 2 points to draw a graph
+    
+    
+    float min_val = arr[0];
+    float max_val = arr[0];
+    for (int i = 1; i < size; i++) {
+        if (arr[i] < min_val) min_val = arr[i];
+        if (arr[i] > max_val) max_val = arr[i];
+    }
+    
+    // If all values are the same, center the graph
+    if (max_val == min_val) {
+        min_val -= 1.0f;
+        max_val += 1.0f;
+    }
+    
+    float value_range = max_val - min_val;
+    if (value_range == 0) value_range = 1.0f;
+    
+    
+    float stepX = (float)width / (size - 1);
+    
+    
+    // Draw the desired horizontal line across the entire graph
+    if (lineValue >= min_val && lineValue <= max_val) {
+        float normalized_line_y = (lineValue - min_val) / value_range;
+        int line_y = y + height - (int)(normalized_line_y * height);
+        CLAMP(line_y, y, height+y);
+        DrawLine(x, line_y, x + width, line_y, RED);
+        
+        // Optional: Display the line value
+        char lineText[20];
+        snprintf(lineText, sizeof(lineText), "%.2f", lineValue);
+        DrawText(lineText, x + width - 60, line_y - 20, 15, RED);
+    }
+    
+    
+    for (int i = 1; i < size; i++) {
+        // Calculate normalized positions (0 to 1)
+        float normalized_y1 = (arr[i-1] - min_val) / value_range;
+        float normalized_y2 = (arr[i] - min_val) / value_range;
+        
+       
+        int y1 = y + height - (int)(normalized_y1 * height);
+        int y2 = y + height - (int)(normalized_y2 * height);
+        CLAMP(y1, y, height+y);
+        CLAMP(y2, y, height+y);
+       
+        int x1 = x + (int)((i-1) * stepX);
+        int x2 = x + (int)(i * stepX);
+        
+
+
+        DrawLine(x1, y1, x2, y2, GREEN);
+    }
+    
+    DrawLine(x, y, x, y + height, WHITE); // Y-axis
+    DrawLine(x, y + height, x + width, y + height, WHITE);
+    
+    DrawText(name, x + 10, y + 10, 20, WHITE);
+    
+}
+
 int main() {
     //Change seed
     srand(time(0));
@@ -211,13 +276,24 @@ int main() {
     
     
 
-
-
-
+    float xP[1000], yP[1000], xPE[1000], yPE[1000];
+    memset(xP, 0, 1000*sizeof(float));
+    memset(yP, 0, 1000*sizeof(float));
     const Color b_color = (Color){0x18, 0x18, 0x18, 255};
     while(!WindowShouldClose()){
         BeginDrawing();
            ClearBackground(b_color);
+           
+           draw_graph(xP, 1000, 600, 200, 300, 100, "X-pos", transmiter.x);
+           memcpy(&xP[0], &xP[1], sizeof(float)*999);
+           xP[999] = posParticle[0];
+
+           draw_graph(yP, 1000, 600, 400, 300, 100, "Y-pos", transmiter.y);
+           memcpy(&yP[0], &yP[1], sizeof(float)*999);
+           yP[999] = posParticle[1];
+           
+
+           
            input_select(&selecetForPlacment);
            change_position(reciver, &transmiter, selecetForPlacment);
            text_what_seleceted(selecetForPlacment);
