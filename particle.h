@@ -94,6 +94,37 @@ int trilaterate_sphere(const Beacon beacons[3], const float distances[3], float 
 
 
 
+//1D particle 
 
+typedef struct {
+    float d;   // distance (hipoteza)
+    float w;   // weight
+} Particle1D;
+
+typedef struct {
+    size_t count;
+    size_t capacity;
+    Particle1D* items;
+} Particle1D_DA;
+
+
+typedef struct {
+    Particle1D_DA p;
+    float A;       // RSSI @ 1m
+    float n;       // path-loss exponent
+    float sig_meas;// measurement noise
+    float sig_pro; // process noise
+    float d_min, d_max;
+    uint64_t s[4]; // RNG state
+} ParticleFilter1D;
+
+
+ParticleFilter1D* init_PF1D(int N, float A, float n, 
+                                      float sig_meas, float sig_pro, float d_min, float d_max);
+
+void step_PF1D(ParticleFilter1D *pf, float rssi_measured);
+float estimate_PF1D(ParticleFilter1D *pf);
+
+ 
 
 #endif
