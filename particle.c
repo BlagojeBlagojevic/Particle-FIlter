@@ -74,6 +74,8 @@ ParticleFilter3D* init_PF3D(int N,
 }
 
 
+
+
 void step_PF3D(ParticleFilter3D *pf, float d1, float d2, float d3) {
     float w_sum = 0.0f;
     
@@ -225,3 +227,89 @@ int trilaterate_sphere(const Beacon beacons[3], const float distances[3], float 
     return 0;
 }
 
+
+
+//1d PARTICLE
+
+static inline float model_rssi(ParticleFilter1D *pf, float d){
+    if(d <= 0.01f) d = 0.01f;
+    return pf->A - 10.0f * pf->n * log10f(d);
+}
+
+
+
+ParticleFilter1D* init_PF1D(int N, float A, float n, 
+                                      float sig_meas, float sig_pro, float d_min, float d_max){
+    ParticleFilter1D *pf = malloc(sizeof(ParticleFilter1D));
+    pf->A = A;
+    pf->n = n;
+    pf->sig_meas = sig_meas;
+    pf->sig_pro = sig_pro;
+    pf->d_min = d_min;
+    pf->d_max = d_max;
+    pf->p.count = 0;
+    pf->p.capacity = 0;
+    pf->p.items = NULL;
+
+    pf->s[0] = rand();
+    pf->s[1] = rand();
+    pf->s[2] = rand();
+    pf->s[3] = rand();
+
+    for(int i = 0; i < N; i++){
+        Particle1D part;
+        part.d = d_min + (float)rand()/RAND_MAX * (d_max - d_min);
+        part.w = 1.0f / (float)N;
+        da_append(&pf->p, part);
+    }
+    return pf;    	
+}
+
+
+void step_PF1D(ParticleFilter1D *pf, float rssi_measured){
+    float w_sum = 0.0f;
+    for(size_t i=0; i<pf->p.count; i++){
+        // prediction
+        float noise = pf->sig_pro * rand_GAUS(pf->s);
+        pf->p.items[i].d += noise;
+        CLAMP(pf->p.items[i].d, pf->d_min, pf->d_max);
+        float rssi_pred = pf->p.items[i].d;
+        float diff = rssi_measured - rssi_pred;
+        float w = expf(-0.5f * (diff*diff)/(pf->sig_meas*pf->sig_meas));
+        pf->p.items[i].w = w;
+        w_sum += w;
+    }
+    
+    for(size_t i=0; i<pf->p.count; i++){
+        pf->p.items[i].w /= w_sum;
+    }
+   
+    //
+    Particle1D_DA newp = {0};
+    float step = 1.0f / pf->p.count;
+    float r = rand_GAUS(pf->s) * step;
+    float c = pf->p.items[0].w;
+    size_t i = 0;
+    
+    for(size_t m=0; m<pf->p.count; m++){
+        float U = r + m*step;
+        while(U > c && i < pf->p.count - 1){
+            i++;
+            c += pf->p.items[i].w;
+        }
+        da_append(&newp, pf->p.items[i]);
+        newp.items[m].w = 1.0f/pf->p.count;
+    }
+    //exit(-1);
+    free(pf->p.items);
+    pf->p = newp;
+}
+
+
+float estimate_PF1D(ParticleFilter1D *pf){
+    float sum = 0.0f;
+    for(size_t i=0; i<pf->p.count; i++){
+        sum += pf->p.items[i].d * pf->p.items[i].w;
+    }
+    return sum;
+}
