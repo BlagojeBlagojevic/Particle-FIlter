@@ -5,7 +5,7 @@
 #include<string.h>
 
 
-const int width = 1200, height = 600;
+const int width = 1300, height = 600;
 uint64_t s[4];  //Used for gaus gener
 
 
@@ -72,7 +72,7 @@ void render_beacons_and_transmiter(Beacon reciver[3], Beacon transmiter, float p
     DrawCircle(reciver[2].x, reciver[2].y, distances[2], c);
 
     DrawRectangle(transmiter.x, transmiter.y, 5, 5, BLUE);
-    DrawRectangle(posNoParticle[0], posNoParticle[1], 5, 5, GREEN);
+    DrawRectangle(posNoParticle[0], posNoParticle[1], 5, 5, GREEN); 
     DrawRectangle(posParticle[0], posParticle[1], 5, 5, YELLOW);
     
     DrawRectangle(reciver[0].x, reciver[0].y, 5, 5, RED);
@@ -142,12 +142,12 @@ void render_distances(Beacon reciver[3], Beacon transmiter, float posNoParticle[
 
     memset(text, 0, 100);
     snprintf(text, 100, "Est no particle(%d, %d, %d)", (int)posNoParticle[0], (int)posNoParticle[1], (int)posNoParticle[2]);
-    DrawText(text, x, y+=inc, 20, WHITE);
+    DrawText(text, x, y+=inc, 20, GREEN);
 
 
     memset(text, 0, 100);
     snprintf(text, 100, "Est particle(%d, %d, %d)", (int)posParticle[0], (int)posParticle[1], (int)posParticle[2]);
-    DrawText(text, x, y+=inc, 20, WHITE);
+    DrawText(text, x, y+=inc, 20, YELLOW);
 
 
 
@@ -157,11 +157,12 @@ void render_distances(Beacon reciver[3], Beacon transmiter, float posNoParticle[
 
 void calculate_RSSIs(float RSSIs[3], float distances[3], float RSSI1m, float envFactor){
     for(int i = 0; i < 3; i++){
-        RSSIs[i] = RSSI(RSSI1m, distances[i], envFactor)  + ( -5.0f * rand_GAUS(s));
+        RSSIs[i] = RSSI(RSSI1m, distances[i], envFactor)  + ( 2*rand_GAUS(s) + -5.0f * rand_GAUS(s));
         CLAMP(RSSIs[i], -120, -40);
     }
 
 }
+
 
 
 void draw_graph(float *arr, int size, int x, int y, int width, int height, const char* name, float lineValue) {
@@ -229,6 +230,9 @@ void draw_graph(float *arr, int size, int x, int y, int width, int height, const
     
 }
 
+
+
+
 int main() {
     //Change seed
     srand(time(0));
@@ -247,7 +251,7 @@ int main() {
     //reciver[0].z = 10;
     //reciver[1].z = 10;
     //reciver[2].z = 10;
-    float RSSIs[3];
+    float RSSIs[3], RSSIp[3];
     Kalman1D kf[3];
     kalman1d_init(&kf[0], 0, VAR0, MESURMENT_VAR, PROCES_VAR);
     kalman1d_init(&kf[1], 0, VAR0, MESURMENT_VAR, PROCES_VAR);
@@ -258,86 +262,110 @@ int main() {
 
 
     // Parametri
-    const int N = 600;         
+    const int N = 6000;         
     
-    const float sig_pro = 100.0f;  // ~10m/s movement uncertainty
-    const float sig_mea = 30.1f;
-    
-    // Granice prostora
-    const float x_min = 0, x_max = width;
-    const float y_min = 0, y_max = height;
-    const float z_min = -0.0f, z_max = 00.0f;
-    
-    
+    const float sig_pro = 0.5f;
+    const float sig_mea = 30.0f;
     
   
-    ParticleFilter3D *pf = init_PF3D(N, reciver, sig_mea, sig_pro, 
-                                    x_min, x_max, y_min, y_max, z_min, z_max);
-    
-    
+    // Granice prostora
+    //const float x_min = 0, x_max = width;
+    //const float y_min = 0, y_max = height;
+    //const float z_min = -0.0f, z_max = 00.0f;
+    const float rssi_min = -120, rssi_max = -40;
 
-    float xP[1000], yP[1000], xPE[1000], yPE[1000];
+    ParticleFilter1D* pf1 = init_PF1D(N, -59, -2.01F, sig_mea, sig_pro, rssi_min, rssi_max); 
+    ParticleFilter1D* pf2 = init_PF1D(N, -59, -2.01F, sig_mea, sig_pro, rssi_min, rssi_max); 
+    ParticleFilter1D* pf3 = init_PF1D(N, -59, -2.01F, sig_mea, sig_pro, rssi_min, rssi_max); 
+    
+    float xP[1000], yP[1000], xK[1000], yK[1000];
     memset(xP, 0, 1000*sizeof(float));
     memset(yP, 0, 1000*sizeof(float));
+    memset(xK, 0, 1000*sizeof(float));
+    memset(yK, 0, 1000*sizeof(float));
+    
+
+
+
     const Color b_color = (Color){0x18, 0x18, 0x18, 255};
-    while(!WindowShouldClose()){
+
+
+   while(!WindowShouldClose()){
         BeginDrawing();
-           ClearBackground(b_color);
-           
-           draw_graph(xP, 1000, 600, 200, 300, 100, "X-pos", transmiter.x);
-           memcpy(&xP[0], &xP[1], sizeof(float)*999);
-           xP[999] = posParticle[0];
+        ClearBackground(b_color);
+        
+        draw_graph(xP, 1000, 600, 200, 300, 100, "X-pos particle", transmiter.x);
+        memcpy(&xP[0], &xP[1], sizeof(float)*999);
+        xP[999] = posParticle[0];
 
-           draw_graph(yP, 1000, 600, 400, 300, 100, "Y-pos", transmiter.y);
-           memcpy(&yP[0], &yP[1], sizeof(float)*999);
-           yP[999] = posParticle[1];
-           
-
-           
-           input_select(&selecetForPlacment);
-           change_position(reciver, &transmiter, selecetForPlacment);
-           text_what_seleceted(selecetForPlacment);
-           render_beacons_and_transmiter(reciver, transmiter, posNoParticle, posParticle, disParticle);
-           calculate_all_distances(reciver, transmiter, distances);
-           calculate_RSSIs(RSSIs, distances, -59, 2.01f);
-           distNo[0] = distance(RSSIs[0], -59, 2.01f);
-           distNo[1] = distance(RSSIs[1], -59, 2.01f);
-           distNo[2] = distance(RSSIs[2], -59, 2.01f);
-           trilaterate_sphere(reciver, distNo, posNoEst);
-
-           kalman1d_update(&kf[0], RSSIs[0]);
-           RSSIs[0] = kf[0].x;
-           distances[0] = distance(RSSIs[0], -59, 2.01f);
-           
-           kalman1d_update(&kf[1], RSSIs[1]);
-           RSSIs[1] = kf[1].x;
-           distances[1] = distance(RSSIs[1], -59, 2.01f);
-           
-           kalman1d_update(&kf[2], RSSIs[2]);
-           RSSIs[2] = kf[2].x;
-           distances[2] = distance(RSSIs[2], -59, 2.01f);
-           
-           disParticle[0] = distances[0];
-           disParticle[1] = distances[1];
-           disParticle[2] = distances[2];
-           trilaterate_sphere(reciver, distances, posNoParticle);
-           CLAMP(posNoParticle[0], 0, width);
-           CLAMP(posNoParticle[1], 0, height);
-           //CLAMP(posNoParticle[2], -2, 0);
-           CLAMP(posParticle[0], 0, width);
-           CLAMP(posParticle[1], 0, height);
-           //CLAMP(posParticle[2], -2, 0);
-                   
+        draw_graph(yP, 1000, 600, 400, 300, 100, "Y-pos particle", transmiter.y);
+        memcpy(&yP[0], &yP[1], sizeof(float)*999);
+        yP[999] = posParticle[1];
 
 
-           for(int i = 0; i < 1000; i++){
-                step_PF3D(pf, disParticle[0], disParticle[1], disParticle[2]);
-                
-                
-           }
-           estimate_PF3D(pf, &posParticle[0], &posParticle[1], &posParticle[2]);
-           trilaterate_sphere(reciver, disParticle, posParticle);
-           render_distances(reciver, transmiter, posNoParticle, posParticle, posNoEst, distances, RSSIs);
+        draw_graph(xK, 1000, 950, 200, 300, 100, "X-pos kalman", transmiter.x);
+        memcpy(&xK[0], &xK[1], sizeof(float)*999);
+        xK[999] = posNoParticle[0];
+
+        draw_graph(yK, 1000, 950, 400, 300, 100, "Y-pos kalman", transmiter.y);
+        memcpy(&yK[0], &yK[1], sizeof(float)*999);
+        yK[999] = posNoParticle[1];
+
+
+        input_select(&selecetForPlacment);
+        change_position(reciver, &transmiter, selecetForPlacment);
+        text_what_seleceted(selecetForPlacment);
+        
+        // Calculate real distances
+        calculate_all_distances(reciver, transmiter, distances);
+        
+        // Generate RSSI measurements (with noise)
+        calculate_RSSIs(RSSIs, distances, -59, 2.01f);
+        RSSIp[0] = RSSIs[0];  
+        RSSIp[1] = RSSIs[1];
+        RSSIp[2] = RSSIs[2];
+        // 1. No filtering (raw RSSI to distance)
+        distNo[0] = distance(RSSIs[0], -59, 2.01f);
+        distNo[1] = distance(RSSIs[1], -59, 2.01f);
+        distNo[2] = distance(RSSIs[2], -59, 2.01f);
+        trilaterate_sphere(reciver, distNo, posNoEst);
+        
+        // 2. Kalman filter
+        kalman1d_update(&kf[0], RSSIs[0]);
+        float kf_rssi0 = kf[0].x;
+        kalman1d_update(&kf[1], RSSIs[1]);
+        float kf_rssi1 = kf[1].x;
+        kalman1d_update(&kf[2], RSSIs[2]);
+        float kf_rssi2 = kf[2].x;
+        
+        distances[0] = distance(kf_rssi0, -59, 2.01f);
+        distances[1] = distance(kf_rssi1, -59, 2.01f);
+        distances[2] = distance(kf_rssi2, -59, 2.01f);
+        trilaterate_sphere(reciver, distances, posNoParticle);
+        
+        // 3. Particle filter
+        step_PF1D(pf1, RSSIp[0]);
+        step_PF1D(pf2, RSSIp[1]);
+        step_PF1D(pf3, RSSIp[2]);
+        
+        float pf_rssi0 = estimate_PF1D(pf1);
+        float pf_rssi1 = estimate_PF1D(pf2);
+        float pf_rssi2 = estimate_PF1D(pf3);
+        
+        disParticle[0] = distance(pf_rssi0, -59, 2.01f);
+        disParticle[1] = distance(pf_rssi1, -59, 2.01f);
+        disParticle[2] = distance(pf_rssi2, -59, 2.01f);
+        trilaterate_sphere(reciver, disParticle, posParticle);
+        
+        // Clamping
+        CLAMP(posNoParticle[0], 0, width);
+        CLAMP(posNoParticle[1], 0, height);
+        CLAMP(posParticle[0], 0, width);
+        CLAMP(posParticle[1], 0, height);
+        
+        // Render
+        render_beacons_and_transmiter(reciver, transmiter, posNoParticle, posParticle, disParticle);
+        render_distances(reciver, transmiter, posNoParticle, posParticle, posNoEst, distances, RSSIs);
         
         EndDrawing();
     }
