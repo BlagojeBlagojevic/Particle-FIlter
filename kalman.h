@@ -1,5 +1,5 @@
 #ifndef _KALMAN_H
-#define _KALMAN_F
+#define _KALMAN_H
 
 #define PROCES_VAR     64.0f
 #define VAR0          100.0f
